@@ -1,7 +1,6 @@
 CompileFlags:
   Add:
     - "-Ifonts"
-    - "-Iimages"
     - "-Iinclude"
     - "-Isrc"
 Diagnostics:

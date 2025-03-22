@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(demo-template LANGUAGES CXX)
+project(pong-demo LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -27,7 +27,6 @@ include_directories(
 )
 
 include_directories("fonts")
-include_directories("images")
 include_directories("include")
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")

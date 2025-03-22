@@ -12,7 +12,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
     cd ..
 
-    g++ -std=c++17 -o build/demo-template src/*.cpp -Ifonts -Iimages -Iinclude -Isrc \
+    g++ -std=c++17 -o build/pong-demo src/*.cpp -Ifonts -Iinclude -Isrc \
         -I"${SDL2_PATH}/include/SDL2" -L"${SDL2_PATH}/lib" \
         -I"${SDL2_IMAGE_PATH}/include/SDL2" -L"${SDL2_IMAGE_PATH}/lib" \
         -I"${SDL2_TTF_PATH}/include/SDL2" -L"${SDL2_TTF_PATH}/lib" \
