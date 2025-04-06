@@ -1,13 +1,14 @@
 // Copyright (c) Scott Doxey. All Rights Reserved. Licensed under the MIT
 // License. See LICENSE in the project root for license information.
 
+// #define HANDCRANK_DEBUG 1
+
 #pragma once
 
 #define HANDCRANK_VERSION_MAJOR 0
 #define HANDCRANK_VERSION_MINOR 0
 #define HANDCRANK_VERSION_PATCH 0
 
-#include <chrono>
 #include <functional>
 #include <iostream>
 #include <list>
@@ -15,6 +16,8 @@
 
 #include <SDL.h>
 #include <SDL_ttf.h>
+
+#include "Handcrank/Utilities.hpp"
 
 namespace Handcrank
 {
@@ -27,6 +30,28 @@ const double DEFAULT_RECT_HEIGHT = 100;
 
 class Game;
 class RenderObject;
+
+enum class RectAnchor : uint8_t
+{
+    TOP = 0x01,
+    LEFT = 0x02,
+    BOTTOM = 0x04,
+    RIGHT = 0x08,
+    VCENTER = 0x16,
+    HCENTER = 0x32,
+};
+
+inline auto operator|(RectAnchor a, RectAnchor b) -> RectAnchor
+{
+    return static_cast<RectAnchor>(static_cast<uint8_t>(a) |
+                                   static_cast<uint8_t>(b));
+}
+
+inline auto operator&(RectAnchor a, RectAnchor b) -> RectAnchor
+{
+    return static_cast<RectAnchor>(static_cast<uint8_t>(a) &
+                                   static_cast<uint8_t>(b));
+}
 
 class Game
 {
@@ -43,7 +68,7 @@ class Game
 
     SDL_Event event;
 
-    std::chrono::steady_clock::time_point previousTime;
+    Uint64 previousTime;
 
     double deltaTime = 0;
     double renderDeltaTime = 0;
@@ -64,6 +89,10 @@ class Game
     float dpiScaleY = 1;
 
     bool focused = false;
+
+#ifdef HANDCRANK_DEBUG
+    bool debug = false;
+#endif
 
   public:
     std::unordered_map<SDL_Keycode, bool> keyState;
@@ -111,7 +140,7 @@ class Game
 
     [[nodiscard]] inline auto GetFPS() const -> double;
 
-    inline void SetFrameRate(double _frameRate);
+    inline void SetFrameRate(double frameRate);
 
     [[nodiscard]] inline auto GetQuit() const -> bool;
 
@@ -131,12 +160,26 @@ class Game
     inline void DestroyChildObjects();
 
     inline void Quit();
+
+#ifdef HANDCRANK_DEBUG
+    inline void ToggleDebug(bool state);
+    inline void ToggleDebug();
+    [[nodiscard]] inline auto IsDebug() const -> bool;
+#endif
 };
 
-class RenderObject
+class RenderObject : public std::enable_shared_from_this<RenderObject>
 {
   protected:
+    static uint count;
+
+    int index;
+
+    std::string name;
+
     std::shared_ptr<SDL_FRect> rect = std::make_shared<SDL_FRect>();
+
+    RectAnchor anchor = RectAnchor::TOP | RectAnchor::LEFT;
 
     double scale = 1;
 
@@ -160,18 +203,28 @@ class RenderObject
   public:
     Game *game;
 
-    RenderObject *parent;
+    std::weak_ptr<RenderObject> parent;
 
     float z;
 
     inline RenderObject();
-    explicit RenderObject(const SDL_FRect _rect) { SetRect(_rect); }
+    explicit RenderObject(float x, float y) { SetRect(x, y); }
+    explicit RenderObject(float x, float y, float w, float h)
+    {
+        SetRect(x, y, w, h);
+    }
 
     inline ~RenderObject();
 
     inline void Enable();
     inline void Disable();
     [[nodiscard]] inline auto IsEnabled() const -> bool;
+
+    [[nodiscard]] inline auto GetIndex() const -> int;
+
+    [[nodiscard]] inline auto GetName() const -> std::string;
+
+    [[nodiscard]] inline auto GetClassName() const -> std::string;
 
     inline void AddChildObject(const std::shared_ptr<RenderObject> &child);
 
@@ -181,11 +234,10 @@ class RenderObject
     template <typename T>
     inline auto GetChildByType(bool nested = false) -> std::shared_ptr<T>;
 
-    inline void SetStart(const std::function<void(RenderObject *)> &_func);
+    inline void SetStart(std::function<void(RenderObject *)> func);
+    inline void SetUpdate(std::function<void(RenderObject *, double)> func);
     inline void
-    SetUpdate(const std::function<void(RenderObject *, double)> &_func);
-    inline void
-    SetFixedUpdate(const std::function<void(RenderObject *, double)> &_func);
+    SetFixedUpdate(std::function<void(RenderObject *, double)> func);
 
     virtual inline void Start();
     virtual inline void Update(double deltaTime);
@@ -200,12 +252,15 @@ class RenderObject
     virtual inline void InternalFixedUpdate(double fixedDeltaTime);
 
     [[nodiscard]] inline auto GetRect() const -> std::shared_ptr<SDL_FRect>;
-    inline void SetRect(SDL_FRect _rect);
+    inline void SetRect(SDL_FRect rect);
     inline void SetRect(float x, float y, float w, float h);
     inline void SetRect(float x, float y);
 
+    [[nodiscard]] inline auto GetAnchor() const -> RectAnchor;
+    inline void SetAnchor(RectAnchor anchor);
+
     [[nodiscard]] inline auto GetScale() const -> double;
-    inline void SetScale(double _scale);
+    inline void SetScale(double scale);
 
     inline auto GetTransformedRect() -> SDL_FRect;
 
@@ -225,7 +280,12 @@ class RenderObject
     inline void Destroy();
 };
 
-Game::Game() { Setup(); }
+Game::Game()
+{
+    Setup();
+
+    previousTime = 0;
+}
 
 Game::~Game()
 {
@@ -249,7 +309,7 @@ Game::~Game()
 
 void Game::AddChildObject(const std::shared_ptr<RenderObject> &child)
 {
-    child->parent = nullptr;
+    child->parent.reset();
 
     child->game = this;
 
@@ -327,6 +387,7 @@ auto Game::Setup() -> bool
     if (window == nullptr)
     {
         SDL_Log("SDL_CreateWindow %s", SDL_GetError());
+
         return false;
     }
 
@@ -344,6 +405,7 @@ auto Game::Setup() -> bool
     if (renderer == nullptr)
     {
         SDL_Log("SDL_CreateRenderer %s", SDL_GetError());
+
         return false;
     }
 
@@ -388,7 +450,7 @@ auto Game::GetFrameRate() const -> double { return frameRate; }
 
 auto Game::GetFPS() const -> double { return fps; }
 
-void Game::SetFrameRate(double _frameRate) { frameRate = _frameRate; }
+void Game::SetFrameRate(double frameRate) { this->frameRate = frameRate; }
 
 auto Game::GetQuit() const -> bool { return quit; }
 
@@ -491,10 +553,16 @@ void Game::HandleInput()
 
 void Game::CalculateDeltaTime()
 {
-    auto currentTime = std::chrono::steady_clock::now();
+    auto currentTime = SDL_GetTicks64();
 
-    deltaTime =
-        std::chrono::duration<double>(currentTime - previousTime).count();
+    if (previousTime == 0)
+    {
+        deltaTime = fixedFrameTime;
+    }
+    else
+    {
+        deltaTime = (currentTime - previousTime) / 1000.0;
+    }
 
     previousTime = currentTime;
 }
@@ -521,14 +589,11 @@ void Game::FixedUpdate()
 
     if (fixedUpdateDeltaTime > fixedFrameTime)
     {
-        for (const auto &iter : children)
+        for (const auto &child : children)
         {
-            if (const auto &child = iter.get(); child != nullptr)
+            if (child->IsEnabled())
             {
-                if (child->IsEnabled())
-                {
-                    child->InternalFixedUpdate(fixedUpdateDeltaTime);
-                }
+                child->InternalFixedUpdate(fixedUpdateDeltaTime);
             }
         }
 
@@ -553,14 +618,11 @@ void Game::Render()
                          const std::shared_ptr<RenderObject> &b)
                       { return a->z < b->z; });
 
-        for (const auto &iter : children)
+        for (const auto &child : children)
         {
-            if (const auto &child = iter.get(); child != nullptr)
+            if (child->IsEnabled())
             {
-                if (child->IsEnabled())
-                {
-                    child->Render(renderer);
-                }
+                child->Render(renderer);
             }
         }
 
@@ -596,12 +658,22 @@ void Game::DestroyChildObjects()
 
 void Game::Quit() { quit = true; }
 
+#ifdef HANDCRANK_DEBUG
+void Game::ToggleDebug(bool state) { debug = state; }
+void Game::ToggleDebug() { debug = !debug; }
+auto Game::IsDebug() const -> bool { return debug; }
+#endif
+
+uint RenderObject::count = 0;
+
 RenderObject::RenderObject()
 {
     rect->x = 0;
     rect->y = 0;
     rect->w = DEFAULT_RECT_WIDTH;
     rect->h = DEFAULT_RECT_HEIGHT;
+
+    index = ++RenderObject::count;
 }
 
 RenderObject::~RenderObject()
@@ -620,9 +692,30 @@ void RenderObject::Disable() { isEnabled = false; }
 
 auto RenderObject::IsEnabled() const -> bool { return isEnabled; }
 
+auto RenderObject::GetIndex() const -> int { return index; }
+
+auto RenderObject::GetName() const -> std::string
+{
+    if (!parent.expired())
+    {
+        if (auto parentPtr = parent.lock())
+        {
+            return parentPtr->GetName() + " > " + GetClassName() + " (" +
+                   std::to_string(index) + ")";
+        }
+    }
+
+    return GetClassName() + " (" + std::to_string(index) + ")";
+}
+
+auto RenderObject::GetClassName() const -> std::string
+{
+    return GetDemangledClassName(*this);
+}
+
 void RenderObject::AddChildObject(const std::shared_ptr<RenderObject> &child)
 {
-    child->parent = this;
+    child->parent = shared_from_this();
 
     child->game = game;
 
@@ -663,7 +756,9 @@ auto RenderObject::GetChildByType(bool nested) -> std::shared_ptr<T>
     static_assert(std::is_base_of_v<RenderObject, T>,
                   "T must be derived from RenderObject");
 
-    if (auto children = GetChildrenByType<T>(nested); !children.empty())
+    auto children = GetChildrenByType<T>(nested);
+
+    if (!children.empty())
     {
         return children.front();
     }
@@ -671,8 +766,7 @@ auto RenderObject::GetChildByType(bool nested) -> std::shared_ptr<T>
     return nullptr;
 }
 
-void RenderObject::SetStart(
-    const std::function<void(RenderObject *)> &_func = nullptr)
+void RenderObject::SetStart(std::function<void(RenderObject *)> func)
 {
     if (startFunction)
     {
@@ -680,11 +774,10 @@ void RenderObject::SetStart(
                      "Overriding with new function.\n";
     }
 
-    startFunction = _func;
+    startFunction = std::move(func);
 }
 
-void RenderObject::SetUpdate(
-    const std::function<void(RenderObject *, double)> &_func = nullptr)
+void RenderObject::SetUpdate(std::function<void(RenderObject *, double)> func)
 {
     if (updateFunction)
     {
@@ -692,11 +785,11 @@ void RenderObject::SetUpdate(
                      "Overriding with new function.\n";
     }
 
-    updateFunction = _func;
+    updateFunction = std::move(func);
 }
 
 void RenderObject::SetFixedUpdate(
-    const std::function<void(RenderObject *, double)> &_func = nullptr)
+    std::function<void(RenderObject *, double)> func)
 {
     if (fixedUpdateFunction)
     {
@@ -704,14 +797,14 @@ void RenderObject::SetFixedUpdate(
                      "Overriding with new function.\n";
     }
 
-    fixedUpdateFunction = _func;
+    fixedUpdateFunction = std::move(func);
 }
 
 void RenderObject::Start() {}
 
-void RenderObject::Update(double deltaTime) {}
+void RenderObject::Update(const double deltaTime) {}
 
-void RenderObject::FixedUpdate(double deltaTime) {}
+void RenderObject::FixedUpdate(const double deltaTime) {}
 
 void RenderObject::OnMouseOver() {}
 
@@ -775,14 +868,11 @@ void RenderObject::InternalUpdate(const double deltaTime)
         updateFunction(this, deltaTime);
     }
 
-    for (const auto &iter : children)
+    for (const auto &child : children)
     {
-        if (const auto &child = iter.get(); child != nullptr)
+        if (child->IsEnabled())
         {
-            if (child->IsEnabled())
-            {
-                child->InternalUpdate(deltaTime);
-            }
+            child->InternalUpdate(deltaTime);
         }
     }
 }
@@ -796,14 +886,11 @@ void RenderObject::InternalFixedUpdate(const double fixedDeltaTime)
         fixedUpdateFunction(this, fixedDeltaTime);
     }
 
-    for (const auto &iter : children)
+    for (const auto &child : children)
     {
-        if (const auto &child = iter.get(); child != nullptr)
+        if (child->IsEnabled())
         {
-            if (child->IsEnabled())
-            {
-                child->InternalFixedUpdate(fixedDeltaTime);
-            }
+            child->InternalFixedUpdate(fixedDeltaTime);
         }
     }
 }
@@ -813,12 +900,12 @@ auto RenderObject::GetRect() const -> std::shared_ptr<SDL_FRect>
     return rect;
 }
 
-void RenderObject::SetRect(const SDL_FRect _rect)
+void RenderObject::SetRect(const SDL_FRect rect)
 {
-    rect->x = _rect.x;
-    rect->y = _rect.y;
-    rect->w = _rect.w;
-    rect->h = _rect.h;
+    this->rect->x = rect.x;
+    this->rect->y = rect.y;
+    this->rect->w = rect.w;
+    this->rect->h = rect.h;
 }
 
 void RenderObject::SetRect(const float x, const float y, const float w,
@@ -836,9 +923,12 @@ void RenderObject::SetRect(const float x, const float y)
     rect->y = y;
 }
 
+auto RenderObject::GetAnchor() const -> RectAnchor { return anchor; }
+void RenderObject::SetAnchor(RectAnchor anchor) { this->anchor = anchor; }
+
 auto RenderObject::GetScale() const -> double { return scale; }
 
-void RenderObject::SetScale(double _scale) { scale = _scale; }
+void RenderObject::SetScale(double scale) { this->scale = scale; }
 
 auto RenderObject::GetTransformedRect() -> SDL_FRect
 {
@@ -847,13 +937,34 @@ auto RenderObject::GetTransformedRect() -> SDL_FRect
     transformedRect.w *= scale;
     transformedRect.h *= scale;
 
-    if (parent != nullptr)
+    if ((anchor & RectAnchor::HCENTER) == RectAnchor::HCENTER)
     {
-        transformedRect.x += parent->GetRect()->x;
-        transformedRect.y += parent->GetRect()->y;
+        transformedRect.x -= transformedRect.w / 2;
+    }
+    else if ((anchor & RectAnchor::RIGHT) == RectAnchor::RIGHT)
+    {
+        transformedRect.x -= transformedRect.w;
+    }
 
-        transformedRect.w *= parent->scale;
-        transformedRect.h *= parent->scale;
+    if ((anchor & RectAnchor::VCENTER) == RectAnchor::VCENTER)
+    {
+        transformedRect.y -= transformedRect.h / 2;
+    }
+    else if ((anchor & RectAnchor::BOTTOM) == RectAnchor::BOTTOM)
+    {
+        transformedRect.y -= transformedRect.h;
+    }
+
+    if (!parent.expired())
+    {
+        if (auto parentPtr = parent.lock())
+        {
+            transformedRect.x += parentPtr->GetRect()->x;
+            transformedRect.y += parentPtr->GetRect()->y;
+
+            transformedRect.w *= parentPtr->scale;
+            transformedRect.h *= parentPtr->scale;
+        }
     }
 
     return transformedRect;
@@ -879,32 +990,48 @@ void RenderObject::Render(const std::shared_ptr<SDL_Renderer> &renderer)
                      const std::shared_ptr<RenderObject> &b)
                   { return a->z < b->z; });
 
-    for (const auto &iter : children)
+    for (const auto &child : children)
     {
-        if (const auto &child = iter.get(); child != nullptr)
+        if (child->IsEnabled())
         {
-            if (child->IsEnabled())
-            {
-                child->Render(renderer);
-            }
+            child->Render(renderer);
         }
     }
+
+#ifdef HANDCRANK_DEBUG
+    if (game->IsDebug())
+    {
+        auto transformedRect = GetTransformedRect();
+
+        SDL_SetRenderDrawColor(renderer.get(), 0, 255, 0, 100);
+        SDL_RenderFillRectF(renderer.get(), &transformedRect);
+
+        SDL_SetRenderDrawColor(renderer.get(), 0, 255, 0, 255);
+        SDL_RenderDrawRectF(renderer.get(), &transformedRect);
+    }
+#endif
 }
 
 [[nodiscard]] auto RenderObject::CalculateBoundingBox() -> SDL_FRect
 {
     auto boundingBox = GetTransformedRect();
 
-    for (const auto &iter : children)
+    for (const auto &child : children)
     {
-        if (const auto &child = iter.get(); child != nullptr)
+        if (child->IsEnabled() && child->CanRender())
         {
             const auto childBoundingBox = child->CalculateBoundingBox();
 
+            float rightExtent = childBoundingBox.x + childBoundingBox.w;
+            float bottomExtent = childBoundingBox.y + childBoundingBox.h;
+            float currentRight = boundingBox.x + boundingBox.w;
+            float currentBottom = boundingBox.y + boundingBox.h;
+
             boundingBox.x = fminf(boundingBox.x, childBoundingBox.x);
             boundingBox.y = fminf(boundingBox.y, childBoundingBox.y);
-            boundingBox.w = fmaxf(boundingBox.w, childBoundingBox.w);
-            boundingBox.h = fmaxf(boundingBox.h, childBoundingBox.h);
+
+            boundingBox.w = fmaxf(currentRight, rightExtent) - boundingBox.x;
+            boundingBox.h = fmaxf(currentBottom, bottomExtent) - boundingBox.y;
         }
     }
 
@@ -922,12 +1049,15 @@ void RenderObject::DestroyChildObjects()
 {
     for (auto iter = children.begin(); iter != children.end();)
     {
-        if (const auto &child = iter->get(); child != nullptr)
+        auto *child = iter->get();
+
+        if (child != nullptr)
         {
             child->DestroyChildObjects();
 
             if (child->HasBeenMarkedForDestroy())
             {
+                iter->reset();
                 iter = children.erase(iter);
             }
             else
@@ -943,6 +1073,14 @@ void RenderObject::DestroyChildObjects()
     return isMarkedForDestroy;
 }
 
-void RenderObject::Destroy() { isMarkedForDestroy = true; }
+void RenderObject::Destroy()
+{
+    isMarkedForDestroy = true;
+
+    for (const auto &child : children)
+    {
+        child->Destroy();
+    }
+}
 
 } // namespace Handcrank

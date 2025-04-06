@@ -1,5 +1,7 @@
 CompileFlags:
+  CompilationDatabase: .
   Add:
+    - "-std=c++17"
     - "-Ifonts"
     - "-Iinclude"
     - "-Isrc"

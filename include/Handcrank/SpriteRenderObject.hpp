@@ -27,7 +27,9 @@ class SpriteRenderObject : public ImageRenderObject
 
   public:
     explicit SpriteRenderObject() = default;
-    explicit SpriteRenderObject(const SDL_FRect _rect) { SetRect(_rect); }
+    explicit SpriteRenderObject(float x, float y) : ImageRenderObject(x, y) {};
+    explicit SpriteRenderObject(float x, float y, float w, float h)
+        : ImageRenderObject(x, y, w, h) {};
 
     ~SpriteRenderObject() = default;
 
@@ -39,13 +41,16 @@ class SpriteRenderObject : public ImageRenderObject
         isPlaying = false;
     }
 
-    void SetFrameSpeed(const double _frameSpeed) { frameSpeed = _frameSpeed; }
-
-    void SetFrames(const std::shared_ptr<std::vector<SDL_Rect>> &_spriteFrames)
+    void SetFrameSpeed(const double frameSpeed)
     {
-        spriteFrames.reset();
+        this->frameSpeed = frameSpeed;
+    }
 
-        spriteFrames = _spriteFrames;
+    void SetFrames(const std::shared_ptr<std::vector<SDL_Rect>> &spriteFrames)
+    {
+        this->spriteFrames.reset();
+
+        this->spriteFrames = spriteFrames;
     }
 
     void CalculateFrames(float width, float height, int columns, int rows,

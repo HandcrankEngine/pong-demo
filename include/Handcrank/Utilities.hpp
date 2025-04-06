@@ -4,6 +4,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cxxabi.h>
 #include <string>
 
 namespace Handcrank
@@ -37,5 +38,30 @@ inline auto RandomNumberRange(int min, int max) -> int
 }
 
 inline auto RandomBoolean() -> bool { return rand() > (RAND_MAX / 2); }
+
+template <typename T> auto GetDemangledClassName(const T &obj) -> std::string
+{
+    const auto &info = typeid(obj);
+
+    int status;
+
+    auto *demangled =
+        abi::__cxa_demangle(info.name(), nullptr, nullptr, &status);
+
+    std::string result;
+
+    if (status == 0 && demangled)
+    {
+        result = demangled;
+
+        free(demangled);
+    }
+    else
+    {
+        result = info.name();
+    }
+
+    return result;
+}
 
 } // namespace Handcrank
