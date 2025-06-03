@@ -5,6 +5,10 @@
 
 #pragma once
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #define HANDCRANK_VERSION_MAJOR 0
 #define HANDCRANK_VERSION_MINOR 0
 #define HANDCRANK_VERSION_PATCH 0
@@ -59,6 +63,8 @@ inline auto operator&(RectAnchor a, RectAnchor b) -> RectAnchor
                                    static_cast<uint8_t>(b));
 }
 
+std::shared_ptr<SDL_Texture> debugRectTexture;
+
 class Game
 {
   private:
@@ -81,6 +87,12 @@ class Game
     double fixedUpdateDeltaTime = 0;
 
     double frameRate = DEFAULT_FRAME_RATE;
+
+#ifdef __EMSCRIPTEN__
+    bool capFrameRate = false;
+#else
+    bool capFrameRate = true;
+#endif
 
     double fps = 0;
 
@@ -153,6 +165,18 @@ class Game
     inline auto Run() -> int;
 
     inline void Loop();
+
+#ifdef __EMSCRIPTEN__
+    static inline void StaticLoop(void *userData)
+    {
+        auto *gameInstance = static_cast<Game *>(userData);
+
+        if (gameInstance != nullptr)
+        {
+            gameInstance->Loop();
+        }
+    }
+#endif
 
     inline void HandleInput();
 
@@ -377,7 +401,7 @@ auto Game::Setup() -> bool
 {
     SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "1");
 
-    if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
+    if (SDL_Init(SDL_INIT_VIDEO) < 0)
     {
         return false;
     }
@@ -470,16 +494,28 @@ auto Game::GetQuit() const -> bool { return quit; }
 
 auto Game::Run() -> int
 {
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop_arg(Game::StaticLoop, this, 0, 1);
+#else
     while (!GetQuit())
     {
         Loop();
     }
+#endif
 
     return 0;
 }
 
 void Game::Loop()
 {
+
+#ifdef __EMSCRIPTEN__
+    if (GetQuit())
+    {
+        emscripten_cancel_main_loop();
+    }
+#endif
+
     HandleInput();
 
     CalculateDeltaTime();
@@ -617,7 +653,7 @@ void Game::Render()
 {
     renderDeltaTime += deltaTime;
 
-    if (renderDeltaTime > targetFrameTime)
+    if (renderDeltaTime > targetFrameTime || !capFrameRate)
     {
         SDL_SetRenderDrawColor(renderer.get(), clearColor.r, clearColor.g,
                                clearColor.b, clearColor.a);
@@ -1016,11 +1052,26 @@ void RenderObject::Render(const std::shared_ptr<SDL_Renderer> &renderer)
     {
         auto transformedRect = GetTransformedRect();
 
-        SDL_SetRenderDrawColor(renderer.get(), 0, 255, 0, 100);
-        SDL_RenderFillRectF(renderer.get(), &transformedRect);
+        if (debugRectTexture == nullptr)
+        {
+            auto *tempSurface = SDL_CreateRGBSurfaceWithFormat(
+                0, 1, 1, 32, SDL_PIXELFORMAT_RGBA32);
 
-        SDL_SetRenderDrawColor(renderer.get(), 0, 255, 0, 255);
-        SDL_RenderDrawRectF(renderer.get(), &transformedRect);
+            if (tempSurface != nullptr)
+            {
+                SDL_FillRect(tempSurface, nullptr,
+                             SDL_MapRGBA(tempSurface->format, 0, 255, 0, 100));
+
+                debugRectTexture = std::shared_ptr<SDL_Texture>(
+                    SDL_CreateTextureFromSurface(renderer.get(), tempSurface),
+                    SDL_DestroyTexture);
+
+                SDL_FreeSurface(tempSurface);
+            }
+        }
+
+        SDL_RenderCopyF(renderer.get(), debugRectTexture.get(), nullptr,
+                        &transformedRect);
     }
 #endif
 }

@@ -22,7 +22,11 @@ class Animation
   private:
     State currentState = State::IDLE;
 
+    double deframeStep;
+
     double elapsedTime;
+
+    double elapsedDeframeTime;
 
     std::function<int(const double, const double)> tickFunction;
 
@@ -32,6 +36,13 @@ class Animation
         const std::function<int(const double, const double)> &tickFunction)
     {
         this->tickFunction = tickFunction;
+    }
+    Animation(
+        const std::function<int(const double, const double)> &tickFunction,
+        const double &deframeStep)
+    {
+        this->tickFunction = tickFunction;
+        this->deframeStep = deframeStep;
     }
 
     ~Animation() = default;
@@ -72,20 +83,34 @@ class Animation
     {
         elapsedTime += deltaTime;
 
-        auto result = tickFunction(deltaTime, elapsedTime);
-
-        if (result == 0)
+        if (elapsedDeframeTime > deframeStep)
         {
-            currentState = State::COMPLETE;
+            auto result = tickFunction(deltaTime, elapsedTime);
+
+            if (result == 0)
+            {
+                currentState = State::COMPLETE;
+            }
+
+            elapsedDeframeTime = 0;
+
+            return result;
         }
 
-        return result;
+        elapsedDeframeTime += deltaTime;
+
+        return 1;
     }
 
     void
     SetTick(const std::function<int(const double, const double)> &tickFunction)
     {
         this->tickFunction = tickFunction;
+    }
+
+    void SetDeframeStep(const double &deframeStep)
+    {
+        this->deframeStep = deframeStep;
     }
 };
 
