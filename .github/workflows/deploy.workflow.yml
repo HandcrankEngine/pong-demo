@@ -37,7 +37,8 @@ jobs:
             -I"${SDL_MIXER_PATH}/include/SDL2" -L"${SDL_MIXER_PATH}/lib" \
             -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer \
             -s USE_FREETYPE=1 -s USE_HARFBUZZ=1 \
-            -s MAX_WEBGL_VERSION=2
+            -s MAX_WEBGL_VERSION=2 \
+            --shell-file templates/web-minimal.html
           gzip -k build/web/index.wasm
 
       - name: Upload artifact
