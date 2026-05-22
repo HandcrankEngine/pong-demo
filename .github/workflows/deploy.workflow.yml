@@ -15,19 +15,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
-      - uses: HandcrankEngine/install-emscripten-package@v0.1.0
+      - uses: HandcrankEngine/install-sdl-packages@3dd8adf2ce1e6698313aecb05a2f8fa59be27b8c # v0.4.1
+        with:
+          BUILD_SDL_FOR_EMSCRIPTEN: true
+          SDL_VERSION: 2.32.10
+          SDL_IMAGE_VERSION: 2.8.12
+          SDL_TTF_VERSION: 2.24.0
+          SDL_MIXER_VERSION: 2.8.2
 
       - name: Build WebGL
         run: |
-          source ./emsdk/emsdk_env.sh
-          ./bin/build-web.sh
+          mkdir -p build/web
+          emcc -std=c++17 -Os -o build/web/index.html src/*.cpp -Ifonts -Iimages -Iinclude -Isrc \
+            -I"${SDL_PATH}/include/SDL2" -L"${SDL_PATH}/lib" \
+            -I"${SDL_IMAGE_PATH}/include/SDL2" -L"${SDL_IMAGE_PATH}/lib" \
+            -I"${SDL_TTF_PATH}/include/SDL2" -L"${SDL_TTF_PATH}/lib" \
+            -I"${SDL_MIXER_PATH}/include/SDL2" -L"${SDL_MIXER_PATH}/lib" \
+            -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer \
+            -s USE_FREETYPE=1 -s USE_HARFBUZZ=1 \
+            -s MAX_WEBGL_VERSION=2
+          gzip -k build/web/index.wasm
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           path: ./build
           overwrite: true
@@ -36,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all build
-        uses: actions/download-artifact@v6.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: build/
 
