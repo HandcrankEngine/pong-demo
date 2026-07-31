@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "HandcrankEngine.hpp"
 #include "TextureRenderObject.hpp"
@@ -25,7 +25,7 @@ class VertexRenderObject : public TextureRenderObject
     {
         SDL_FRect rect;
         SDL_FRect srcRect;
-        SDL_Color color;
+        SDL_FColor color;
     };
 
   protected:

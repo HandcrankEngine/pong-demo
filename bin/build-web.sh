@@ -1,17 +1,16 @@
 #!/bin/bash
 
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-
 (
 
-    rm -rf build/web
+    mkdir -p /tmp/dist/web
 
-    mkdir -p build/web
-
-    emcc -std=c++17 -Os -o build/web/index.html src/*.cpp -Ifonts -Iimages -Iinclude -Isrc \
-        -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png", "svg"]' -s USE_SDL_TTF=2 -s USE_SDL_MIXER=2 \
+    emcc -std=c++17 -Os -o /tmp/dist/web/index.html src/*.cpp -Ifonts -Iimages -Iinclude -Isrc \
+        -I"${DEPS_PREFIX}"/include -L"${DEPS_PREFIX}"/lib \
+        -lSDL3 -lSDL3_image -lSDL3_ttf -lSDL3_mixer \
+        -s USE_FREETYPE=1 -s USE_HARFBUZZ=1 \
+        -s MAX_WEBGL_VERSION=2 \
         --shell-file templates/web-minimal.html
 
-    gzip -k build/web/index.wasm
+    gzip -k /tmp/dist/web/index.wasm
 
 )

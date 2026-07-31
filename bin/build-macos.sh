@@ -45,7 +45,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
         -I"${SDL_IMAGE_INCLUDE_PATH}" -L"${SDL_IMAGE_PATH}/lib" \
         -I"${SDL_TTF_INCLUDE_PATH}" -L"${SDL_TTF_PATH}/lib" \
         -I"${SDL_MIXER_INCLUDE_PATH}" -L"${SDL_MIXER_PATH}/lib" \
-        -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer \
+        -lSDL3 -lSDL3_image -lSDL3_ttf -lSDL3_mixer \
         -rpath @loader_path/../Frameworks
 
     mkdir -p "${MACOS}"
@@ -58,10 +58,10 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
     cp "resources/${MACOSX_BUNDLE_ICON_FILE}" "${RESOURCES}"
 
-    cp "${SDL_PATH}/lib/libSDL2-2.0.0.dylib" "${FRAMEWORKS}"
-    cp "${SDL_IMAGE_PATH}/lib/libSDL2_image-2.0.0.dylib" "${FRAMEWORKS}"
-    cp "${SDL_TTF_PATH}/lib/libSDL2_ttf-2.0.0.dylib" "${FRAMEWORKS}"
-    cp "${SDL_MIXER_PATH}/lib/libSDL2_mixer-2.0.0.dylib" "${FRAMEWORKS}"
+    cp "${SDL_PATH}/lib/libSDL3.dylib" "${FRAMEWORKS}"
+    cp "${SDL_IMAGE_PATH}/lib/libSDL3_image.dylib" "${FRAMEWORKS}"
+    cp "${SDL_TTF_PATH}/lib/libSDL3_ttf.dylib" "${FRAMEWORKS}"
+    cp "${SDL_MIXER_PATH}/lib/libSDL3_mixer.dylib" "${FRAMEWORKS}"
 
     find_dependencies() {
         local LIBRARY="${1}"
@@ -73,19 +73,19 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
         done
     }
 
-    find_dependencies "${SDL_PATH}/lib/libSDL2-2.0.0.dylib"
-    find_dependencies "${SDL_IMAGE_PATH}/lib/libSDL2_image-2.0.0.dylib"
-    find_dependencies "${SDL_TTF_PATH}/lib/libSDL2_ttf-2.0.0.dylib"
-    find_dependencies "${SDL_MIXER_PATH}/lib/libSDL2_mixer-2.0.0.dylib"
+    find_dependencies "${SDL_PATH}/lib/libSDL3.dylib"
+    find_dependencies "${SDL_IMAGE_PATH}/lib/libSDL3_image.dylib"
+    find_dependencies "${SDL_TTF_PATH}/lib/libSDL3_ttf.dylib"
+    find_dependencies "${SDL_MIXER_PATH}/lib/libSDL3_mixer.dylib"
 
-    install_name_tool -change /opt/homebrew/opt/sdl2/lib/libSDL2-2.0.0.dylib @executable_path/../Frameworks/libSDL2-2.0.0.dylib "${EXECUTABLE}"
-    install_name_tool -change /opt/homebrew/opt/sdl2_image/lib/libSDL2_image-2.0.0.dylib @executable_path/../Frameworks/libSDL2_image-2.0.0.dylib "${EXECUTABLE}"
-    install_name_tool -change /opt/homebrew/opt/sdl2_ttf/lib/libSDL2_ttf-2.0.0.dylib @executable_path/../Frameworks/libSDL2_ttf-2.0.0.dylib "${EXECUTABLE}"
-    install_name_tool -change /opt/homebrew/opt/sdl2_mixer/lib/libSDL2_mixer-2.0.0.dylib @executable_path/../Frameworks/libSDL2_mixer-2.0.0.dylib "${EXECUTABLE}"
+    install_name_tool -change /opt/homebrew/opt/sdl3/lib/libSDL3.dylib @executable_path/../Frameworks/libSDL3.dylib "${EXECUTABLE}"
+    install_name_tool -change /opt/homebrew/opt/sdl3_image/lib/libSDL3_image.dylib @executable_path/../Frameworks/libSDL3_image.dylib "${EXECUTABLE}"
+    install_name_tool -change /opt/homebrew/opt/sdl3_ttf/lib/libSDL3_ttf.dylib @executable_path/../Frameworks/libSDL3_ttf.dylib "${EXECUTABLE}"
+    install_name_tool -change /opt/homebrew/opt/sdl3_mixer/lib/libSDL3_mixer.dylib @executable_path/../Frameworks/libSDL3_mixer.dylib "${EXECUTABLE}"
 
-    install_name_tool -change @rpath/libSDL2.dylib @executable_path/../Frameworks/libSDL2-2.0.0.dylib "${FRAMEWORKS}/libSDL2_image-2.0.0.dylib"
-    install_name_tool -change @rpath/libSDL2.dylib @executable_path/../Frameworks/libSDL2-2.0.0.dylib "${FRAMEWORKS}/libSDL2_ttf-2.0.0.dylib"
-    install_name_tool -change @rpath/libSDL2.dylib @executable_path/../Frameworks/libSDL2-2.0.0.dylib "${FRAMEWORKS}/libSDL2_mixer-2.0.0.dylib"
+    install_name_tool -change @rpath/libSDL3.dylib @executable_path/../Frameworks/libSDL3.dylib "${FRAMEWORKS}/libSDL3_image.dylib"
+    install_name_tool -change @rpath/libSDL3.dylib @executable_path/../Frameworks/libSDL3.dylib "${FRAMEWORKS}/libSDL3_ttf.dylib"
+    install_name_tool -change @rpath/libSDL3.dylib @executable_path/../Frameworks/libSDL3.dylib "${FRAMEWORKS}/libSDL3_mixer.dylib"
 
     cat >"${CONTENTS}/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

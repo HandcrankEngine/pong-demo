@@ -22,20 +22,20 @@ jobs:
       - uses: HandcrankEngine/install-sdl-packages@3dd8adf2ce1e6698313aecb05a2f8fa59be27b8c # v0.4.1
         with:
           BUILD_SDL_FOR_EMSCRIPTEN: true
-          SDL_VERSION: 2.32.10
-          SDL_IMAGE_VERSION: 2.8.12
-          SDL_TTF_VERSION: 2.24.0
-          SDL_MIXER_VERSION: 2.8.2
+          SDL_VERSION: 3.4.12
+          SDL_IMAGE_VERSION: 3.4.4
+          SDL_TTF_VERSION: 3.2.2
+          SDL_MIXER_VERSION: 3.2.4
 
       - name: Build WebGL
         run: |
           mkdir -p build/web
-          emcc -std=c++17 -Os -o build/web/index.html src/*.cpp -Ifonts -Iimages -Iinclude -Isrc \
-            -I"${SDL_PATH}/include/SDL2" -L"${SDL_PATH}/lib" \
-            -I"${SDL_IMAGE_PATH}/include/SDL2" -L"${SDL_IMAGE_PATH}/lib" \
-            -I"${SDL_TTF_PATH}/include/SDL2" -L"${SDL_TTF_PATH}/lib" \
-            -I"${SDL_MIXER_PATH}/include/SDL2" -L"${SDL_MIXER_PATH}/lib" \
-            -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer \
+          emcc -std=c++17 -Os -o /tmp/dist/web/index.html src/*.cpp -Ifonts -Iimages -Iinclude -Isrc \ \
+            -I"${SDL_PATH}/include" -L"${SDL_PATH}/lib" \
+            -I"${SDL_IMAGE_PATH}/include" -L"${SDL_IMAGE_PATH}/lib" \
+            -I"${SDL_TTF_PATH}/include" -L"${SDL_TTF_PATH}/lib" \
+            -I"${SDL_MIXER_PATH}/include" -L"${SDL_MIXER_PATH}/lib" \
+            -lSDL3 -lSDL3_image -lSDL3_ttf -lSDL3_mixer \
             -s USE_FREETYPE=1 -s USE_HARFBUZZ=1 \
             -s MAX_WEBGL_VERSION=2 \
             --shell-file templates/web-minimal.html

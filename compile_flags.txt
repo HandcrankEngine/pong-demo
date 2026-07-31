@@ -1,5 +1,5 @@
 -std=c++17
--I/opt/homebrew/Cellar/sdl2/2.32.10/include/SDL2
--I/opt/homebrew/Cellar/sdl2_image/2.8.8/include/SDL2
--I/opt/homebrew/Cellar/sdl2_ttf/2.24.0/include/SDL2
--I/opt/homebrew/Cellar/sdl2_mixer/2.8.1_1/include/SDL2
+-I/opt/homebrew/Cellar/sdl3/3.4.12/include
+-I/opt/homebrew/Cellar/sdl3_image/3.4.4_1/include
+-I/opt/homebrew/Cellar/sdl3_ttf/3.2.2/include
+-I/opt/homebrew/Cellar/sdl3_mixer/3.2.4/include

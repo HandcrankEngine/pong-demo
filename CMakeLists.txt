@@ -18,7 +18,7 @@ function(INSTALL_SDL_LIBRARY NAME VERSION REPO_NAME REPO_URL)
 
     if(EXISTS "/opt/homebrew/Cellar/${NAME}/${VERSION}/")
         set(${NAME_LIBRARY}_LIBRARY_DIR "/opt/homebrew/Cellar/${NAME}/${VERSION}/lib")
-        set(${NAME_LIBRARY}_INCLUDE_DIR "/opt/homebrew/Cellar/${NAME}/${VERSION}/include/SDL2")
+        set(${NAME_LIBRARY}_INCLUDE_DIR "/opt/homebrew/Cellar/${NAME}/${VERSION}/include")
 
         find_library(${NAME_LIBRARY}_LIBRARY NAMES ${NAME_LIBRARY} HINTS ${${NAME_LIBRARY}_LIBRARY_DIR})
 
@@ -40,38 +40,38 @@ function(INSTALL_SDL_LIBRARY NAME VERSION REPO_NAME REPO_URL)
     endif()
 endfunction()
 
-# SDL2 Flags
-set(SDL2_DISABLE_INSTALL ON)
+# SDL3 Flags
+set(SDL3_DISABLE_INSTALL ON)
 
-# SDL2_image Flags
-set(SDL2IMAGE_AVIF OFF)
-set(SDL2IMAGE_BMP OFF)
-set(SDL2IMAGE_GIF OFF)
-set(SDL2IMAGE_LBM OFF)
-set(SDL2IMAGE_PCX OFF)
-set(SDL2IMAGE_PNM OFF)
-set(SDL2IMAGE_QOI OFF)
-set(SDL2IMAGE_TGA OFF)
-set(SDL2IMAGE_TIF OFF)
-set(SDL2IMAGE_WEBP OFF)
-set(SDL2IMAGE_XCF OFF)
-set(SDL2IMAGE_XPM OFF)
-set(SDL2IMAGE_INSTALL OFF)
+# SDL3_image Flags
+set(SDL3IMAGE_AVIF OFF)
+set(SDL3IMAGE_BMP OFF)
+set(SDL3IMAGE_GIF OFF)
+set(SDL3IMAGE_LBM OFF)
+set(SDL3IMAGE_PCX OFF)
+set(SDL3IMAGE_PNM OFF)
+set(SDL3IMAGE_QOI OFF)
+set(SDL3IMAGE_TGA OFF)
+set(SDL3IMAGE_TIF OFF)
+set(SDL3IMAGE_WEBP OFF)
+set(SDL3IMAGE_XCF OFF)
+set(SDL3IMAGE_XPM OFF)
+set(SDL3IMAGE_INSTALL OFF)
 
-# SDL2_ttf Flags
-set(SDL2TTF_INSTALL OFF)
+# SDL3_ttf Flags
+set(SDL3TTF_INSTALL OFF)
 
-# SDL2_mixer Flags
-set(SDL2MIXER_OPUS OFF)
-set(SDL2MIXER_MIDI_FLUIDSYNTH OFF)
-set(SDL2MIXER_WAVPACK OFF)
-set(SDL2MIXER_XMP OFF)
-set(SDL2MIXER_INSTALL OFF)
+# SDL3_mixer Flags
+set(SDL3MIXER_OPUS OFF)
+set(SDL3MIXER_MIDI_FLUIDSYNTH OFF)
+set(SDL3MIXER_WAVPACK OFF)
+set(SDL3MIXER_XMP OFF)
+set(SDL3MIXER_INSTALL OFF)
 
-INSTALL_SDL_LIBRARY("sdl2" "2.32.10" "SDL2" "https://github.com/libsdl-org/SDL.git")
-INSTALL_SDL_LIBRARY("sdl2_image" "2.8.8" "SDL2_image" "https://github.com/libsdl-org/SDL_image.git")
-INSTALL_SDL_LIBRARY("sdl2_ttf" "2.24.0" "SDL2_ttf" "https://github.com/libsdl-org/SDL_ttf.git")
-INSTALL_SDL_LIBRARY("sdl2_mixer" "2.8.1" "SDL2_mixer" "https://github.com/libsdl-org/SDL_mixer.git")
+INSTALL_SDL_LIBRARY("sdl3" "3.4.12" "SDL3" "https://github.com/libsdl-org/SDL.git")
+INSTALL_SDL_LIBRARY("sdl3_image" "3.4.4" "SDL3_image" "https://github.com/libsdl-org/SDL_image.git")
+INSTALL_SDL_LIBRARY("sdl3_ttf" "3.2.2" "SDL3_ttf" "https://github.com/libsdl-org/SDL_ttf.git")
+INSTALL_SDL_LIBRARY("sdl3_mixer" "3.2.4" "SDL3_mixer" "https://github.com/libsdl-org/SDL_mixer.git")
 
 include_directories("fonts")
 include_directories("images")
@@ -87,13 +87,13 @@ else()
 endif()
 
 if(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL2_LIBRARY} SDL2main)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL3_LIBRARY} SDL3main)
 else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL2_LIBRARY})
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL3_LIBRARY})
 endif()
-target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL2_IMAGE_LIBRARY})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL2_TTF_LIBRARY})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL2_MIXER_LIBRARY})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL3_IMAGE_LIBRARY})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL3_TTF_LIBRARY})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL3_MIXER_LIBRARY})
 
 if(APPLE AND CMAKE_BUILD_TYPE MATCHES "[Rr]elease")
     set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -254,11 +254,11 @@ class LeftPaddle : public Paddle
 
         auto y = rect.y;
 
-        if (game->IsKeyDown(SDLK_w))
+        if (game->IsKeyDown(SDLK_W))
         {
             y -= movementSpeed * deltaTime;
         }
-        else if (game->IsKeyDown(SDLK_s))
+        else if (game->IsKeyDown(SDLK_S))
         {
             y += movementSpeed * deltaTime;
         }
@@ -378,7 +378,7 @@ class GameManager : public RenderObject
             SDL_FRect tempRect = {((float)game->GetWidth() / 2) - (width / 2),
                                   y * height, width, height};
 
-            SDL_RenderFillRectF(renderer, &tempRect);
+            SDL_RenderFillRect(renderer, &tempRect);
         }
     }
 };

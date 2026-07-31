@@ -9,8 +9,7 @@
 
 #pragma once
 
-#include <SDL.h>
-#include <SDL_image.h>
+#include <SDL3/SDL.h>
 
 #include "HandcrankEngine.hpp"
 #include "TextureCache.hpp"
@@ -23,8 +22,8 @@ class TextureRenderObject : public RenderObject
   protected:
     SDL_Texture *texture = nullptr;
 
-    int textureWidth = 0;
-    int textureHeight = 0;
+    float textureWidth = 0;
+    float textureHeight = 0;
 
   public:
     using RenderObject::RenderObject;
@@ -119,8 +118,7 @@ class TextureRenderObject : public RenderObject
             return;
         }
 
-        SDL_QueryTexture(texture, nullptr, nullptr, &textureWidth,
-                         &textureHeight);
+        SDL_GetTextureSize(texture, &textureWidth, &textureHeight);
 
         SetDimension(textureWidth, textureHeight);
     }

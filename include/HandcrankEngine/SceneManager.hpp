@@ -82,7 +82,7 @@ class SceneManager : public RenderObject
 
     auto GetCurrentScene() -> std::shared_ptr<Scene> { return currentScene; }
 
-    void AddScene(std::shared_ptr<Scene> scene)
+    void AddScene(const std::shared_ptr<Scene> &scene)
     {
         if (std::find(scenes.begin(), scenes.end(), scene) == scenes.end())
         {

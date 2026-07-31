@@ -9,214 +9,222 @@
 
 #pragma once
 
+#include <filesystem>
+#include <iostream>
 #include <unordered_map>
 
-#include <SDL_mixer.h>
+#include <SDL3_mixer/SDL_mixer.h>
 
 #include "Utilities.hpp"
 
 namespace HandcrankEngine
 {
 
-inline const int DEFAULT_AUDIO_CHUNK_SIZE = 512;
-
 namespace
 {
-bool audioIsOpen = false;
 
-inline std::unordered_map<std::size_t, std::shared_ptr<Mix_Music>>
-    audioMusicCache =
-        std::unordered_map<std::size_t, std::shared_ptr<Mix_Music>>();
-inline std::unordered_map<std::size_t, std::shared_ptr<Mix_Chunk>>
-    audioSFXCache =
-        std::unordered_map<std::size_t, std::shared_ptr<Mix_Chunk>>();
+inline MIX_Mixer *mixer;
+
+inline std::unordered_map<std::size_t, std::shared_ptr<MIX_Audio>> audioCache =
+    std::unordered_map<std::size_t, std::shared_ptr<MIX_Audio>>();
+
 } // namespace
 
-inline auto ClearAudioCache() -> void
-{
-    audioMusicCache.clear();
-    audioSFXCache.clear();
-}
+inline auto ClearAudioCache() -> void { audioCache.clear(); }
 
-struct MixMusicDeleter
+struct MixAudioDeleter
 {
-    void operator()(Mix_Music *music) const
+    void operator()(MIX_Audio *audio) const
     {
-        if (music != nullptr)
+        if (audio != nullptr)
         {
-            Mix_FreeMusic(music);
+            MIX_DestroyAudio(audio);
         }
     }
 };
 
-struct MixChunkDeleter
+inline auto SetupAudio() -> bool
 {
-    void operator()(Mix_Chunk *chunk) const
+    if (mixer != nullptr)
     {
-        if (chunk != nullptr)
-        {
-            Mix_FreeChunk(chunk);
-        }
-    }
-};
-
-inline auto SetupAudio() -> int
-{
-    if (audioIsOpen)
-    {
-        return 0;
+        return true;
     }
 
-    auto result = Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT,
-                                MIX_DEFAULT_CHANNELS, DEFAULT_AUDIO_CHUNK_SIZE);
-
-    if (result == 0)
+    if (!MIX_Init())
     {
-        audioIsOpen = true;
+        SDL_Log("MIX_Init %s", SDL_GetError());
+
+        return false;
     }
 
-    return result;
+    mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
+
+    if (mixer == nullptr)
+    {
+        SDL_Log("MIX_CreateMixerDevice %s", SDL_GetError());
+
+        return false;
+    }
+
+    return true;
 }
 
-inline auto LoadCachedMusic(const char *path) -> std::shared_ptr<Mix_Music>
+inline auto LoadCachedMusic(const char *path) -> std::shared_ptr<MIX_Audio>
 {
+    if (!std::filesystem::exists(path))
+    {
+        std::cerr << "[Handcrank Engine] Audio file not found: " << path
+                  << "\n";
+
+        return nullptr;
+    }
+
     auto cacheKey = std::hash<std::string_view>{}(std::string_view(path));
 
-    auto match = audioMusicCache.find(cacheKey);
+    auto match = audioCache.find(cacheKey);
 
-    if (match != audioMusicCache.end())
+    if (match != audioCache.end())
     {
         return match->second;
     }
 
-    if (SetupAudio() != 0)
+    if (!SetupAudio())
     {
         return nullptr;
     }
 
-    auto music =
-        std::shared_ptr<Mix_Music>(Mix_LoadMUS(path), MixMusicDeleter{});
+    auto music = std::shared_ptr<MIX_Audio>(MIX_LoadAudio(mixer, path, true),
+                                            MixAudioDeleter{});
 
     if (music == nullptr)
     {
         return nullptr;
     }
 
-    audioMusicCache.insert_or_assign(cacheKey, music);
+    audioCache.insert_or_assign(cacheKey, music);
 
     return music;
 }
 
 inline auto LoadCachedMusic(const void *mem, int size)
-    -> std::shared_ptr<Mix_Music>
+    -> std::shared_ptr<MIX_Audio>
 {
     auto cacheKey = MemHash(mem, size);
 
-    auto match = audioMusicCache.find(cacheKey);
+    auto match = audioCache.find(cacheKey);
 
-    if (match != audioMusicCache.end())
+    if (match != audioCache.end())
     {
         return match->second;
     }
 
-    auto *rw = SDL_RWFromConstMem(mem, size);
+    if (!SetupAudio())
+    {
+        return nullptr;
+    }
+
+    auto *rw = SDL_IOFromConstMem(mem, size);
 
     if (rw == nullptr)
     {
         return nullptr;
     }
 
-    if (SetupAudio() != 0)
-    {
-        return nullptr;
-    }
-
-    auto music =
-        std::shared_ptr<Mix_Music>(Mix_LoadMUS_RW(rw, 1), MixMusicDeleter{});
+    auto music = std::shared_ptr<MIX_Audio>(
+        MIX_LoadAudio_IO(mixer, rw, true, true), MixAudioDeleter{});
 
     if (music == nullptr)
     {
         return nullptr;
     }
 
-    audioMusicCache.insert_or_assign(cacheKey, music);
+    audioCache.insert_or_assign(cacheKey, music);
 
     return music;
 }
 
-inline auto LoadCachedSFX(const char *path) -> std::shared_ptr<Mix_Chunk>
+inline auto LoadCachedSFX(const char *path) -> std::shared_ptr<MIX_Audio>
 {
+    if (!std::filesystem::exists(path))
+    {
+        std::cerr << "[Handcrank Engine] Audio file not found: " << path
+                  << "\n";
+
+        return nullptr;
+    }
+
     auto cacheKey = std::hash<std::string_view>{}(std::string_view(path));
 
-    auto match = audioSFXCache.find(cacheKey);
+    auto match = audioCache.find(cacheKey);
 
-    if (match != audioSFXCache.end())
+    if (match != audioCache.end())
     {
         return match->second;
     }
 
-    if (SetupAudio() != 0)
+    if (!SetupAudio())
     {
         return nullptr;
     }
 
-    auto sfx = std::shared_ptr<Mix_Chunk>(Mix_LoadWAV(path), MixChunkDeleter{});
+    auto sfx = std::shared_ptr<MIX_Audio>(MIX_LoadAudio(mixer, path, true),
+                                          MixAudioDeleter{});
 
     if (sfx == nullptr)
     {
         return nullptr;
     }
 
-    audioSFXCache.insert_or_assign(cacheKey, sfx);
+    audioCache.insert_or_assign(cacheKey, sfx);
 
     return sfx;
 }
 
 inline auto LoadCachedSFX(const void *mem, int size)
-    -> std::shared_ptr<Mix_Chunk>
+    -> std::shared_ptr<MIX_Audio>
 {
     auto cacheKey = MemHash(mem, size);
 
-    auto match = audioSFXCache.find(cacheKey);
+    auto match = audioCache.find(cacheKey);
 
-    if (match != audioSFXCache.end())
+    if (match != audioCache.end())
     {
         return match->second;
     }
 
-    auto *rw = SDL_RWFromConstMem(mem, size);
+    if (!SetupAudio())
+    {
+        return nullptr;
+    }
+
+    auto *rw = SDL_IOFromConstMem(mem, size);
 
     if (rw == nullptr)
     {
         return nullptr;
     }
 
-    if (SetupAudio() != 0)
-    {
-        return nullptr;
-    }
-
-    auto sfx =
-        std::shared_ptr<Mix_Chunk>(Mix_LoadWAV_RW(rw, 1), MixChunkDeleter{});
+    auto sfx = std::shared_ptr<MIX_Audio>(
+        MIX_LoadAudio_IO(mixer, rw, true, true), MixAudioDeleter{});
 
     if (sfx == nullptr)
     {
         return nullptr;
     }
 
-    audioSFXCache.insert_or_assign(cacheKey, sfx);
+    audioCache.insert_or_assign(cacheKey, sfx);
 
     return sfx;
 }
 
 inline auto TeardownAudio() -> void
 {
-    if (audioIsOpen)
+    if (mixer == nullptr)
     {
-        Mix_CloseAudio();
-
-        audioIsOpen = false;
+        return;
     }
+
+    MIX_DestroyMixer(mixer);
 }
 
 } // namespace HandcrankEngine
