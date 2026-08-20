@@ -1,0 +1,128 @@
+FROM ubuntu:latest
+
+ARG SDL_VERSION=3.4.14
+ARG SDL_IMAGE_VERSION=3.4.4
+ARG SDL_TTF_VERSION=3.2.2
+ARG SDL_MIXER_VERSION=3.2.4
+
+ENV DEPS_PREFIX=/usr/local
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    make \
+    cmake \
+    curl \
+    pkg-config \
+    ninja-build \
+    libasound2-dev \
+    libdbus-1-dev \
+    libdrm-dev \
+    libfreetype6-dev \
+    libgbm-dev \
+    libgles2-mesa-dev \
+    libharfbuzz-dev \
+    libibus-1.0-dev \
+    libjack-dev \
+    libpulse-dev \
+    libsndio-dev \
+    libudev-dev \
+    libx11-dev \
+    libxcursor-dev \
+    libxext-dev \
+    libxfixes-dev \
+    libxi-dev \
+    libxkbcommon-dev \
+    libxrandr-dev \
+    libxss-dev \
+    libxtst-dev && rm -rf /var/lib/apt/lists/*
+
+ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/aarch64-linux-gnu/pkgconfig:${PKG_CONFIG_PATH}"
+
+# Install SDL
+RUN mkdir -p /tmp/.sdl && \
+    cd /tmp/.sdl && \
+    curl -L https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz > SDL.tar.gz && \
+    mkdir SDL-${SDL_VERSION} && \
+    tar -xzvf SDL.tar.gz --strip-components=1 -C SDL-${SDL_VERSION} && \
+    rm SDL.tar.gz && \
+    cd SDL-${SDL_VERSION} && \
+    cmake -S . -B build \
+        -DCMAKE_INSTALL_PREFIX="${DEPS_PREFIX}" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DSDL_SHARED=ON \
+        -DSDL_STATIC=ON && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build
+
+# Install SDL_image
+RUN mkdir -p /tmp/.sdl && \
+    cd /tmp/.sdl && \
+    curl -L https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL_IMAGE_VERSION}/SDL3_image-${SDL_IMAGE_VERSION}.tar.gz > SDL_image.tar.gz && \
+    mkdir SDL_image-${SDL_IMAGE_VERSION} && \
+    tar -xzvf SDL_image.tar.gz --strip-components=1 -C SDL_image-${SDL_IMAGE_VERSION} && \
+    rm SDL_image.tar.gz && \
+    cd SDL_image-${SDL_IMAGE_VERSION} && \
+    cmake -S . -B build \
+        -DCMAKE_INSTALL_PREFIX="${DEPS_PREFIX}" \
+        -DSDL3_DIR="${DEPS_PREFIX}/lib/cmake/SDL3" \
+        -DSDL_STATIC_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DSDLIMAGE_SAMPLES=OFF && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build
+
+# Install SDL_ttf
+RUN mkdir -p /tmp/.sdl && \
+    cd /tmp/.sdl && \
+    curl -L https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL_TTF_VERSION}/SDL3_ttf-${SDL_TTF_VERSION}.tar.gz > SDL_ttf.tar.gz && \
+    mkdir SDL_ttf-${SDL_TTF_VERSION} && \
+    tar -xzvf SDL_ttf.tar.gz --strip-components=1 -C SDL_ttf-${SDL_TTF_VERSION} && \
+    rm SDL_ttf.tar.gz && \
+    cd SDL_ttf-${SDL_TTF_VERSION} && \
+    cmake -S . -B build \
+        -DCMAKE_INSTALL_PREFIX="${DEPS_PREFIX}" \
+        -DSDL3_DIR="${DEPS_PREFIX}/lib/cmake/SDL3" \
+        -DSDL_STATIC_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DSDLTTF_SAMPLES=OFF && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build
+
+# Install SDL_mixer
+RUN mkdir -p /tmp/.sdl && \
+    cd /tmp/.sdl && \
+    curl -L https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL_MIXER_VERSION}/SDL3_mixer-${SDL_MIXER_VERSION}.tar.gz > SDL_mixer.tar.gz && \
+    mkdir SDL_mixer-${SDL_MIXER_VERSION} && \
+    tar -xzvf SDL_mixer.tar.gz --strip-components=1 -C SDL_mixer-${SDL_MIXER_VERSION} && \
+    rm SDL_mixer.tar.gz && \
+    cd SDL_mixer-${SDL_MIXER_VERSION} && \
+    cmake -S . -B build \
+        -DCMAKE_INSTALL_PREFIX="${DEPS_PREFIX}" \
+        -DSDL3_DIR="${DEPS_PREFIX}/lib/cmake/SDL3" \
+        -DSDL_STATIC_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DSDLMIXER_SAMPLES=OFF && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build
+
+WORKDIR /app
+
+COPY ./bin ./bin
+COPY ./fonts ./fonts
+COPY ./include ./include
+COPY ./src ./src
+COPY ./templates ./templates
+
+RUN mkdir -p /tmp/dist/linux
+
+RUN g++ -std=c++17 -o /tmp/dist/linux/pong-demo src/*.cpp -Ifonts -Iimages -Iinclude -Isrc \
+    /usr/local/lib/libSDL3_ttf.a \
+    /usr/local/lib/libSDL3_mixer.a \
+    /usr/local/lib/libSDL3_image.a \
+    /usr/local/lib/libSDL3.a \
+    $(pkg-config --libs --static sdl3 sdl3-image sdl3-ttf sdl3-mixer)
